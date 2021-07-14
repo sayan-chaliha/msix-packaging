@@ -1,0 +1,31 @@
+name: Build & Release
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - *.md
+
+jobs:
+  build:
+    name: "Build"
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            cmd: "./makemac.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
+          - os: ubuntu-latest
+            cmd: "./makelinux.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
+          - os: windows-latest
+            cmd: "./makewin.sh x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v2
+      - name: "Setup CMake"
+        uses: jwlawson/actions-setup-cmake@v1.9
+        with:
+          cmake-version: "3.20.x"
+      - name: "Run Build"
+        run: ${{ matrix.cmd }}
+
