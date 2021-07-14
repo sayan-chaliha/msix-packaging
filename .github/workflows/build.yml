@@ -16,7 +16,7 @@ jobs:
             cmd: "./makemac.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
             artifact: "makemsix-darwin-x64"
           - os: ubuntu-latest
-            cmd: "./makelinux.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
+            cmd: "./makelinux.sh -sb --validation-parser --pack --skip-samples"
             artifact: "makemsix-linux-x64"
           - os: windows-latest
             cmd: "makewin.cmd x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
