@@ -19,7 +19,7 @@ jobs:
             cmd: "./makelinux.sh -sb --validation-parser --pack --skip-samples"
             artifact: "makemsix-linux-x64"
           - os: windows-latest
-            cmd: "makewin.cmd x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
+            cmd: ".\makewin.cmd x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
             artifact: "makemsix-win32-x64"
     runs-on: ${{ matrix.os }}
     steps:
