@@ -3,7 +3,7 @@ on:
   push:
     branches: [master]
     paths-ignore:
-      - *.md
+      - "*.md"
 
 jobs:
   build:
@@ -14,10 +14,13 @@ jobs:
         include:
           - os: macos-latest
             cmd: "./makemac.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
+            artifact: "makemsix-darwin-x64"
           - os: ubuntu-latest
             cmd: "./makelinux.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
+            artifact: "makemsix-linux-x64"
           - os: windows-latest
-            cmd: "./makewin.sh x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
+            cmd: "makewin.cmd x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
+            artifact: "makemsix-win32-x64"
     runs-on: ${{ matrix.os }}
     steps:
       - name: "Checkout Code"
@@ -28,4 +31,11 @@ jobs:
           cmake-version: "3.20.x"
       - name: "Run Build"
         run: ${{ matrix.cmd }}
+      - name: "Run Tests"
+        run: .vs/msixtest/msixtest
+      - name: "Publish Artifacts"
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.artifact }}
+          path: .vs/bin/makemsix
 
