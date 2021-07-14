@@ -230,13 +230,18 @@ foreach(FILE ${MsixSrc})
 endforeach()
 
 # Define the library
-add_library(${PROJECT_NAME} SHARED 
+set(MSIX_OBJECTS ${PROJECT_NAME}Objects)
+
+add_library(${MSIX_OBJECTS} OBJECT
     msix.cpp
     ${MsixSrc}
- )
+)
+
+add_library(${PROJECT_NAME} SHARED $<TARGET_OBJECTS:${MSIX_OBJECTS}>)
+add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${MSIX_OBJECTS}>)
 
 # Adding dependency to the third party libs directory
-add_dependencies(${PROJECT_NAME} LIBS)
+add_dependencies(${MSIX_OBJECTS} LIBS)
 
 # Copy out public headers to <binary dir>/src/unpack
 configure_file(../inc/public/MSIXWindows.hpp   ${CMAKE_CURRENT_BINARY_DIR}/MSIXWindows.hpp  )
@@ -245,16 +250,16 @@ configure_file(../inc/public/MsixErrors.hpp    ${CMAKE_CURRENT_BINARY_DIR}/MsixE
 
 # Linker and includes
 # Include MSIX headers
-target_include_directories(${PROJECT_NAME} PRIVATE ${MSIX_PROJECT_ROOT}/src/inc/public ${MSIX_PROJECT_ROOT}/src/inc/shared ${MSIX_PROJECT_ROOT}/src/inc/internal)
+target_include_directories(${MSIX_OBJECTS} PRIVATE ${MSIX_PROJECT_ROOT}/src/inc/public ${MSIX_PROJECT_ROOT}/src/inc/shared ${MSIX_PROJECT_ROOT}/src/inc/internal)
 
 if(WIN32)
     string(REPLACE "/GR" " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     if(CMAKE_BUILD_TYPE MATCHES Debug)
-        set_target_properties(${PROJECT_NAME} PROPERTIES
+        set_target_properties(${MSIX_OBJECTS} PROPERTIES
             COMPILE_FLAGS "/source-charset:utf-8 /GR-"
             )
     else()
-        set_target_properties(${PROJECT_NAME} PROPERTIES
+        set_target_properties(${MSIX_OBJECTS} PROPERTIES
             COMPILE_FLAGS "/source-charset:utf-8 /Gw /GL /GR-"
             )
     endif()
@@ -278,6 +283,7 @@ if(WIN32)
         endif()
     endif()
     target_link_libraries(${PROJECT_NAME} PRIVATE bcrypt crypt32 wintrust runtimeobject.lib delayimp.lib)
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE bcrypt crypt32 wintrust runtimeobject.lib delayimp.lib)
 endif()
 
 # Set the build version. It will be used in the name of the lib, with corresponding
@@ -290,43 +296,49 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # Compression
 if(((IOS) OR (MACOS)) AND (NOT USE_MSIX_SDK_ZLIB))
     # for macos and ios use the inbox libcompression zlib apis instead of zlib, unless zlib is explicitly requested.
-    target_include_directories(${PROJECT_NAME} PRIVATE ${MSIX_PROJECT_ROOT}/src/msix/PAL/DataCompression/Apple)
+    target_include_directories(${MSIX_OBJECTS} PRIVATE ${MSIX_PROJECT_ROOT}/src/msix/PAL/DataCompression/Apple)
     target_link_libraries(${PROJECT_NAME} PRIVATE libcompression.dylib)
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE libcompression.dylib)
 elseif((AOSP) AND (NOT USE_MSIX_SDK_ZLIB))
     # for AOSP, use the libz.so from the android ndk.
     find_package(ZLIB REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE -lz)
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE -lz)
 else() # WIN32 or USE_MSIX_SDK_ZLIB
-    target_include_directories(${PROJECT_NAME} PRIVATE 
+    target_include_directories(${MSIX_OBJECTS} PRIVATE 
             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/zlib
             ${MSIX_PROJECT_ROOT}/lib/zlib
         )
     if(USE_SHARED_ZLIB)
         message(STATUS "MSIX takes a dynamic dependency on zlib")
         target_link_libraries(${PROJECT_NAME} PRIVATE zlib)
+        target_link_libraries(${PROJECT_NAME}_static PRIVATE zlib)
     else()
         message(STATUS "MSIX takes a static dependency on zlib")
         target_link_libraries(${PROJECT_NAME} PRIVATE zlibstatic)
+        target_link_libraries(${PROJECT_NAME}_static PRIVATE zlibstatic)
     endif()
 endif()
 
 # Parser
 if(XML_PARSER MATCHES xerces)
-    target_include_directories(${PROJECT_NAME} PRIVATE
+    target_include_directories(${MSIX_OBJECTS} PRIVATE
         ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/xerces/src
         ${MSIX_PROJECT_ROOT}/lib/xerces/src
     )
     target_link_libraries(${PROJECT_NAME} PRIVATE xerces-c)
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE xerces-c)
 endif()
 
 if(XML_PARSER MATCHES applexml)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/PAL/XML/Apple)
+    target_include_directories(${MSIX_OBJECTS} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/PAL/XML/Apple)
 endif()
 
 if(AOSP)
     target_link_libraries(${PROJECT_NAME} PRIVATE -latomic)
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE -latomic)
     if((NOT SKIP_BUNDLES) OR (XML_PARSER MATCHES javaxml))
-        target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/PAL/Interop/AOSP)
+        target_include_directories(${MSIX_OBJECTS} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/PAL/Interop/AOSP)
         # JNI
         find_package(Java REQUIRED)
         if(NOT ANDROID_SDK)
@@ -371,19 +383,24 @@ endif()
 # Misc Linking
 if((IOS) OR (MACOS))
     target_link_libraries(${PROJECT_NAME} PRIVATE ${COREFOUNDATION_LIBRARY} ${FOUNDATION_LIBRARY})
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE ${COREFOUNDATION_LIBRARY} ${FOUNDATION_LIBRARY})
 endif()
 if(LINUX)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME}_static PRIVATE ${ICU_LIBRARIES})
 endif()
 
 if(OpenSSL_FOUND)
     # include the libraries needed to use OpenSSL
-    target_include_directories(${PROJECT_NAME} PRIVATE ${OpenSSL_INCLUDE_PATH})
+    target_include_directories(${MSIX_OBJECTS} PRIVATE ${OpenSLL_INCLUDE_PATH})
     if((IOS) OR (MACOS))
+        target_link_libraries(${PROJECT_NAME}_static PRIVATE crypto -Wl,-dead_strip)
         target_link_libraries(${PROJECT_NAME} PRIVATE crypto -Wl,-dead_strip)
     elseif(NOT MSVC)
+        target_link_libraries(${PROJECT_NAME}_static PRIVATE crypto -Wl,--gc-sections)
         target_link_libraries(${PROJECT_NAME} PRIVATE crypto -Wl,--gc-sections)
     else()
+        target_link_libraries(${PROJECT_NAME}_static PRIVATE crypto)
         target_link_libraries(${PROJECT_NAME} PRIVATE crypto)
     endif()
 endif()

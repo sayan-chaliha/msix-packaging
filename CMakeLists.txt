@@ -170,10 +170,9 @@ if((MACOS) OR (IOS))
             message(FATAL_ERROR "Unsupported iOS version: ${IOS_DEPLOYMENT_TARGET}, this project requires at least iOS version 10.0")
         endif()
     endif()
-elseif(AOSP OR LINUX)
-    # Static libraries must be position independent to be linked with a shared object.
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Mac needed variables
 # [TODO: adapt as needed]
