@@ -6,8 +6,26 @@ on:
       - "*.md"
 
 jobs:
+  create-release:
+    id: create-release
+    name: "Create Release"
+    runs-on: "ubuntu-latest"
+    outputs:
+      upload_url: ${{ steps.create-release.outputs.upload_url }}
+    steps:
+      - name: "Create Release"
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: true
   build:
     name: "Build"
+    needs: create-release
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -15,12 +33,15 @@ jobs:
           - os: macos-latest
             cmd: "./makemac.sh -sb -parser-xerces --validation-parser --pack --skip-samples"
             artifact: "makemsix-darwin-x64"
+            makemsix: "makemsix"
           - os: ubuntu-latest
             cmd: "./makelinux.sh -sb --validation-parser --pack --skip-samples"
             artifact: "makemsix-linux-x64"
+            makemsix: "makemsix"
           - os: windows-latest
             cmd: "./makewin.cmd x64 -sb -parser-xerces --validation-parser --pack --skip-samples -mt"
             artifact: "makemsix-win32-x64"
+            makemsix: "makemsix.exe"
     runs-on: ${{ matrix.os }}
     steps:
       - name: "Checkout Code"
@@ -34,8 +55,13 @@ jobs:
       - name: "Run Tests"
         run: .vs/msixtest/msixtest
       - name: "Publish Artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ matrix.artifact }}
-          path: .vs/bin/makemsix
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_name: ${{ matrix.artifact }}
+          asset_path: .vs/bin/${{ matrix.makemsix }}
+          asset_content_type: "application/octet-stream"
+
 
